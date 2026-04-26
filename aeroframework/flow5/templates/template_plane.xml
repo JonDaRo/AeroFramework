@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE flow5>
+<xflplane version="1.0">
+    <!--For convenience, all field names are case-insensitive, as an exception to the standard xml specification-->
+    <!--Where applicable, default values will be used for all undefined fields-->
+    <Units>
+        <!--Unit conversion factors: The values in this file will be multiplied by the following factors to obtain SI units.Labels changed in v7.50 for consistency, legacy ones have been kept active-->
+        <meter_to_length_unit>1</meter_to_length_unit>
+        <m2_to_area_unit>1</m2_to_area_unit>
+        <kg_to_mass_unit>1</kg_to_mass_unit>
+        <ms_to_speed_unit>1</ms_to_speed_unit>
+        <kgm2_to_inertia_unit>1</kgm2_to_inertia_unit>
+    </Units>
+    <Plane>
+        <Name>preset</Name>
+        <The_Style>
+            <!--Available style options are: SOLID, DASH, DOT, DASHDOT, DASHDOTDOT, NOLINE-->
+            <Stipple>SOLID</Stipple>
+            <!--Available symbol options are NOSYMBOL, LITTLECIRCLE, LITTLECIRCLEFILLED, BIGCIRCLE, BIGCIRCLEFILLED, LITTLESQUARE, LITTLESQUAREFILLED, BIGSQUARE, BIGSQUAREFILLED, TRIANGLE, TRIANGLE_INV, TRIANGLEFILLED, TRIANGLEFILLED_INV, LITTLECROSS, BIGCROSS-->
+            <PointStyle>NOSYMBOL</PointStyle>
+            <Width>2</Width>
+            <Color>
+                <red>220</red>
+                <green>20</green>
+                <blue>60</blue>
+                <alpha>255</alpha>
+            </Color>
+        </The_Style>
+        <Inertia>
+            <Point_Mass>
+                <Tag></Tag>
+                <Mass>  0</Mass>
+                <coordinates>       0,           0,           0</coordinates>
+            </Point_Mass>
+        </Inertia>
+    </Plane>
+</xflplane>

@@ -1,0 +1,22 @@
+[build-system]
+requires=["flit_core >=3.2,<4"]
+build-backend="flit_core.buildapi"
+
+[project]
+name="AeroFramework"
+authors=[
+    {name="Jonni Dalla Rosa", email="dallarosajonni@gmail.com"},
+]
+readme="README.md"
+requires-python=">=3.7"
+dynamic=["version", "description"]
+
+dependencies=[
+    "numpy"
+]
+
+[tool.flit.module]
+name="aeroframework"
+
+[tool.flit.sdist]
+include=["aeroframework/flow5/templates/*.xml"]
