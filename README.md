@@ -1,4 +1,4 @@
-# 1 - Flow5 API & Wing Parametrerization
+# 1 - Flow5 API & Wing Parameterization
 
 This repository provides a comprehensive suite of **Python tools** designed to automate geometry generation, analysis configuration, and result extraction for the **Flow5** aerodynamic analysis software.
 
