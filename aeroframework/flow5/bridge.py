@@ -9,18 +9,18 @@ import subprocess
 import itertools
 import re
 
-BASE_DIR=dirname(__file__)
-templates={
-    "Case": join(BASE_DIR,"templates/template_case.xml"),
-    "Plane": join(BASE_DIR,"templates/template_plane.xml"),
-    "Analysis": join(BASE_DIR,"templates/template_analysis.xml")
+_BASE_DIR=dirname(__file__)
+_templates={
+    "Case": join(_BASE_DIR,"templates/template_case.xml"),
+    "Plane": join(_BASE_DIR,"templates/template_plane.xml"),
+    "Analysis": join(_BASE_DIR,"templates/template_analysis.xml")
 }
-for name, path in templates.items():
+for name, path in _templates.items():
     if not exists(path):
         raise FileNotFoundError(f"Critical Error: The '{name}' template was not found at: {path}")
 
 
-def search_files(direc,exts=None):
+def _search_files(direc,exts=None):
     if not isinstance(direc,(str)):
         raise Exception("direc need to be a str variable")
     if not isdir(direc):
@@ -35,24 +35,25 @@ def search_files(direc,exts=None):
         raise Exception("exts need to be a str, list, tuple variable or None. If None take all files in the directory.")
     return files
 
-def get_files(direc,exts):
+
+def _get_files(direc,exts):
     files=[]
     if not isinstance(direc,(list)):
         direc=[direc]
     for d in direc:
         if isdir(d):
-            files.extend(search_files(d,exts))
+            files.extend(_search_files(d,exts))
         elif isfile(d) and d.lower().endswith(exts):
             files.append({"name":basename(d),"path":d})
     return files
 
 
-def XML_writer(data,file,xml_type=None):
+def _XML_writer(data,file,xml_type=None):
     XML=file
     if xml_type !=None:
         if exists(file): 
             remove(file)
-        XML=templates[xml_type]
+        XML=_templates[xml_type]
 
     tree=ET.parse(XML)
     root=tree.getroot()
@@ -158,7 +159,7 @@ def flow5_case(Path:str, Threads:int, Fl5File:bool=False, StoreOP:bool=False, Ga
         for key in data.keys():
             if not isinstance(data[key],str):
                 data[key]=str(data[key])
-        XML_writer(data,CASE_XML,"Case")
+        _XML_writer(data,CASE_XML,"Case")
 
     except Exception as err:
         raise RuntimeError(f"Flow5 case creation failed: {err}")
@@ -166,7 +167,7 @@ def flow5_case(Path:str, Threads:int, Fl5File:bool=False, StoreOP:bool=False, Ga
     return CaseRes
 
 
-def flow5_analysis(PlaneRes:dict, Name:str, Type:str, Method:str, ThinSurf:bool=True, GrdEff:bool=False, Height:float=0.0, Viscosity:float=1.5e-05, Density:float=1.225, Viscous:bool=True, Xflr5Visc:bool=True, FixTAS:float=0.0, FixAoA:float=0.0, optional:dict={}, Gate:bool=True)->dict:
+def flow5_analysis(PlaneRes:dict, Name:str, Type:str, Method:str, ThinSurf:bool=True, GrdEff:bool=False, Height:float=0.0, Viscosity:float=1.5e-05, Density:float=1.225, Viscous:bool=True, Xflr5Visc:bool=True, FixTAS:float=0.0, FixAoA:float=0.0, Optional:dict={}, Gate:bool=True)->dict:
     '''Creates an XML file for a Flow5 analysis.
     Args:
         PlaneRes (dict): The dictionary returned by flow5_plane.
@@ -182,7 +183,7 @@ def flow5_analysis(PlaneRes:dict, Name:str, Type:str, Method:str, ThinSurf:bool=
         Xflr5Visc (bool, optional): If True uses CL data for viscous analysis (XFLR5 method). Default is True.
         FixTAS (float, optional): The fixed velocity for fixed speed analyses. Default is 0m/s.
         FixAoA (float, optional): The fixed angle of attack for fixed angle of attack analyses. Default is 0deg.
-        optional (dict, optional): A dictionary with any additional parameters to include in the XML file.
+        Optional (dict, optional): A dictionary with any additional parameters to include in the XML file. The key must be the XML parameter path like "Polar/Viscous_Analysis/TransAtHinge" associated to its value.
         Gate (bool, optional): If False no file/folder is modified or created. Default is True.
     Returns:
         AnalysisRes (dict): A dictionary with the data related to the analysis.
@@ -216,12 +217,12 @@ def flow5_analysis(PlaneRes:dict, Name:str, Type:str, Method:str, ThinSurf:bool=
         raise TypeError("FixTAS must be a number")
     if not isinstance(FixAoA, (int, float)):
         raise TypeError("FixAoA must be a number")
-    if not isinstance(optional, dict):
+    if not isinstance(Optional, dict):
         raise TypeError("Optional must be a dictionary")
     if not isinstance(Gate, bool):
         raise TypeError("Gate must be a boolean")
     
-    for key in optional.keys():
+    for key in Optional.keys():
         if not isinstance(key,str):
             raise TypeError("All keys in optional must be strings")
     
@@ -262,19 +263,19 @@ def flow5_analysis(PlaneRes:dict, Name:str, Type:str, Method:str, ThinSurf:bool=
         "Polar/Reference_Dimensions/Reference_Chord_Length": PlaneRes["ref_data"][2]
     }
 
-    data.update(optional)
+    data.update(Optional)
     for key in data.keys():
         if not isinstance(data[key],str):
             data[key]=str(data[key])
 
     try:
-        XML_writer(data,ANALYSIS_XML,"Analysis")
+        _XML_writer(data,ANALYSIS_XML,"Analysis")
     except Exception as err:
         raise RuntimeError(f"Flow5 analysis creation failed: {err}")
     return AnalysisRes
 
 
-def wingparams(SecData):
+def _wingparams(SecData):
     S=0
     l=int(len(SecData)/5)-1
     for i in range(l):
@@ -293,26 +294,44 @@ def wingparams(SecData):
     return S,wingspan,MAC
 
 
+def _geo_element(SecData):
+    
+    n_sec=len(SecData)//5
+    geo_data=[]
+    prev_data=[SecData[4],0,0,0]
+    
+    for i in range(n_sec):
+        sec_data=[-SecData[i*5+3], (prev_data[0]+SecData[i*5+4])/2, SecData[i*5+1]]
+        x=SecData[i*5+2]
+        y=prev_data[2]+(SecData[i*5]-prev_data[1])*np.cos(np.radians(prev_data[0]))
+        z=prev_data[3]+(SecData[i*5]-prev_data[1])*np.sin(np.radians(prev_data[0]))
+        prev_data=[SecData[i*5+4],SecData[i*5],y,z]
+        sec_data.extend([x,y,z])
+        geo_data.append(sec_data)
+
+    return geo_data
+
+
 def flow5_element(Name:str, Type:str, WingGeo:dict, Airfoils:list, WingPos:list, WingTilt:list, Panels:int=25)->tuple:
-    '''Generates the data in list format for geometry generation and dictionary for element generation in Flow5.
+    '''Generates a dictionary for the geometry visualization and another dictionary for element generation in Flow5.
     Args:
         Name (str): The name of the element.
         Type (str): The type of element (MAINWING, OTHERWING, ELEVATOR, FIN).
         WingGeo (dict): A dictionary containing the geometric data of the element. It must contain the following keys:
-                        -FullWing (bool): If True, the element is symmetric with respect to the plane YZ (wing or half-wing). Default is False.
-                        -SecData (list): A list of data for each section of the element. Each section must be represented by 5 values in this order:
-                                         -the position along the y-axis in m;
-                                         -the chord in m;
-                                         -the offset in m;
-                                         -the twist angle in deg;
-                                         -the dihedral angle in deg.
-        Airfoils (list): A list of file names for the airfoils corresponding to each section.
+                        -FullWing (bool): If True, the element is symmetric with respect to the YZ plane (wing or half-wing). Default is False.
+                        -SecData (float list): A list of data for each section of the element. Each section must be represented by 5 values in that order:
+                                         -Position along the y-axis (m).;
+                                         -Chord length (m).
+                                         -Offset (m).
+                                         -Twist angle (deg).
+                                         -Dihedral angle (deg).
+        Airfoils (str list): A list of file names for the airfoils corresponding to each section.
                          Intermediate sections are represented by two profiles: one for the left side and one for the right side.
-        WingPos (list): A list of three numbers representing the position in m of the element in the aircraft reference system (x, y, z).
-        WingTilt (list): A list of two numbers representing the rotation angle in deg of the element around the x, y axes (Rx, Ry).
-        Panels (int, optional): The number of panels along the x direction (chord) to use. Default is 25.
+        WingPos (float list): A list of three numbers representing the position in m of the element in the aircraft reference system (x, y, z).
+        WingTilt (float list): A list of two numbers representing the rotation angle in deg of the element around the x, y axes (Rx, Ry).
+        Panels (int, optional): TThe number of panels to use along the x-direction (chord). Default is 25.
     Returns:
-        GeoElem (list): A list containing the generic geometric data of the element, for the visualization.
+        GeoElem (dict): A dictionary containing the geometric data of the element for the visualization.
         Element (dict): A dictionary containing the geometric data for the generation of the element in Flow5.
     '''
 
@@ -343,8 +362,6 @@ def flow5_element(Name:str, Type:str, WingGeo:dict, Airfoils:list, WingPos:list,
 
     if len(SecData)/5!=int(len(Airfoils)/2+1):
         raise ValueError("len(SecData) must be same of len(Airfoils)/2+1")
-
-    GeoElem=[SecData,FullWing,WingPos,WingTilt,Airfoils]
     
     sections=[]
     xn_p=Panels
@@ -391,13 +408,20 @@ def flow5_element(Name:str, Type:str, WingGeo:dict, Airfoils:list, WingPos:list,
     sections.append({"y":round(y,3),"c":round(c,3),"o":round(o,3),"d":round(d,3),"t":round(t,3),"xp_num":xn_p,
         "yp_num":1,"yp_dis":"UNIFORM","left_s":a,"right_s":a})
     
-    S,wingspan,MAC=wingparams(SecData)
+    S,wingspan,MAC=_wingparams(SecData)
 
     Element={"name":Name,"type":Type,"full_wing":FullWing,"wing_pos":WingPos,"wing_tilt":WingTilt,"sections":sections,"ref_data":[S,wingspan,MAC]}
-    return GeoElem,Element
+
+    GeoElem=deepcopy(Element)
+    GeoElem.pop("ref_data")
+    GeoElem.pop("sections")
+    GeoElem["airfoils"]=Airfoils
+    GeoElem["geo_data"]=_geo_element(SecData)
+
+    return GeoElem, Element
 
 
-def update1_plane_xml(data,el,n_el,mass,BankAng):
+def _update1_plane_xml(data,el,n_el,mass,BankAng):
 
     x=el['wing_pos'][0]
     y=el['wing_pos'][1]*np.cos(np.radians(BankAng))-el['wing_pos'][2]*np.sin(np.radians(BankAng))
@@ -438,7 +462,17 @@ def update1_plane_xml(data,el,n_el,mass,BankAng):
     return data,airfoils
 
 
-def update_case_xml(CASE_XML,airfoils_dict):
+def _update2_plane_xml(data,pl_inertia):
+    for i,pl in enumerate(pl_inertia):
+        data.update({
+            f"Plane/Inertia/Point_Mass+{i}/Tag":pl["tag"],
+            f"Plane/Inertia/Point_Mass+{i}/Mass":str(pl["mass"]),
+            f"Plane/Inertia/Point_Mass+{i}/coordinates":f"{pl['coord'][0]},{pl['coord'][1]},{pl['coord'][2]}"
+        })
+    return data
+
+
+def _update_case_xml(CASE_XML,airfoils_dict):
     data={}
     for i,af in enumerate(airfoils_dict):
         airfoil_path=af["dat"]
@@ -451,25 +485,15 @@ def update_case_xml(CASE_XML,airfoils_dict):
             data.update({
                 f"Plane_Analysis/Foil_Polar_Files/Polar_File_Name+{i}":xflr5_polar_path
             })
-    XML_writer(data,CASE_XML)
+    _XML_writer(data,CASE_XML)
     return
 
 
-def update2_plane_xml(data,pl_inertia):
-    for i,pl in enumerate(pl_inertia):
-        data.update({
-            f"Plane/Inertia/Point_Mass+{i}/Tag":pl["tag"],
-            f"Plane/Inertia/Point_Mass+{i}/Mass":str(pl["mass"]),
-            f"Plane/Inertia/Point_Mass+{i}/coordinates":f"{pl['coord'][0]},{pl['coord'][1]},{pl['coord'][2]}"
-        })
-    return data
-
-
-def add_airfoils_files(airfoils,Airfoils_dir,Polars_dir,AIRFOILS_PATH,XFLR5_POLARS_PATH,XFOIL_POLARS_PATH):
+def _add_airfoils_files(airfoils,AirfoilsDir,PolarsDir,AIRFOILS_PATH,XFLR5_POLARS_PATH,XFOIL_POLARS_PATH):
     airfoils_dict=[]
     unique_airfoils=set(airfoils)
 
-    raw_txt_list=get_files(Polars_dir,"txt")
+    raw_txt_list=_get_files(PolarsDir,"txt")
     txt_data={af:[] for af in unique_airfoils}
     for txt in raw_txt_list:
         name=txt["name"].split(".")[0].split("_")[0]
@@ -477,8 +501,8 @@ def add_airfoils_files(airfoils,Airfoils_dir,Polars_dir,AIRFOILS_PATH,XFLR5_POLA
             txt_data[name].append(txt["path"])
 
     for af in unique_airfoils:
-        in_dat=join(Airfoils_dir,f"{af}.dat")
-        in_plr=join(Polars_dir,f"{af}.plr")
+        in_dat=join(AirfoilsDir,f"{af}.dat")
+        in_plr=join(PolarsDir,f"{af}.plr")
 
         out_dat=None
         out_plr=None
@@ -490,7 +514,7 @@ def add_airfoils_files(airfoils,Airfoils_dir,Polars_dir,AIRFOILS_PATH,XFLR5_POLA
             copy(in_dat,out_dat)
 
         if not isfile(in_plr) and len(txt_data[af])==0:
-            raise FileNotFoundError(f"Polar file not found for airfoil {af}: expected {in_plr} or .txt files with name starting with '{af}_' in {Polars_dir}. Airfoil names must not contain underscores.")
+            raise FileNotFoundError(f"Polar file not found for airfoil {af}: expected {in_plr} or .txt files with name starting with '{af}_' in {PolarsDir}. Airfoil names must not contain underscores.")
         elif isfile(in_plr):
             out_plr=join(XFLR5_POLARS_PATH,f"{af}.plr")
             copy(in_plr,out_plr)
@@ -505,7 +529,7 @@ def add_airfoils_files(airfoils,Airfoils_dir,Polars_dir,AIRFOILS_PATH,XFLR5_POLA
     return airfoils_dict
 
 
-def planeparams(Element,TotRefS):
+def _planeparams(Element,TotRefS):
     S=0
     wingspan=0
     MAC=0
@@ -519,18 +543,18 @@ def planeparams(Element,TotRefS):
     return S,wingspan,MAC
 
 
-def flow5_plane(CaseRes:dict, Name:str, MassRes:list, Elements:list, Airfoils_dir:str, Polars_dir:str, BankAng:float=0, TotRefS:bool=True, Gate:bool=True)->dict:
+def flow5_plane(CaseRes:dict, Name:str, MassRes:list, Elements:list, AirfoilsDir:str, PolarsDir:str, BankAng:float=0, TotRefS:bool=True, Gate:bool=True)->dict:
     '''Creates an XML file for the definition of an aircraft in Flow5.
     Args:
         CaseRes (dict): The dictionary returned by flow5_case.
         Name (str): The name of the aircraft.
-        MassRes (list): A list of dictionaries with the mass data for each element of the aircraft. Each dictionary must contain: 
-                        -the keys "coord" (a list of three numbers for the coordinates x, y, z in m), "mass" (the mass in Kg)
+        MassRes (dict list): A list of dictionaries with the mass data for each element of the aircraft. Each dictionary must contain: 
+                        -the keys "coord" (a list of three numbers for the coordinates x, y, z in m), "mass" (the mass in kg)
                             and "tag" (a name to identify the mass point);
                         -if the key "coord" is the name of the element, the key "mass" is its mass in kg (automatically distributed over the entire element by flow5) and there is no key "tag".
-        Elements (list): A list of dictionaries with the geometric data for each element of the aircraft obtained through flow5_element.
-        Airfoils_dir (string): The path of the folder containing the airfoils .dat files.
-        Polars_dir (string): The path of the folder containing the polars .plr or .txt files.
+        Elements (dict list): A list of dictionaries with the geometric data for each element of the aircraft obtained through flow5_element.
+        AirfoilsDir (string): The path of the folder containing the airfoils .dat files.
+        PolarsDir (string): The path of the folder containing the polars .plr or .txt files.
         BankAng (float, optional): The bank angle in deg to apply to the entire aircraft (positive is clockwise rotation around the x-axis). Default is 0 deg.
         TotRefS (bool, optional): If True, considers the total surface area of the aircraft as reference for the analyses (include OTHERWING elements). Default is False.
         Gate (bool, optional): If False no file/folder is modified or created. Default is True.
@@ -546,10 +570,10 @@ def flow5_plane(CaseRes:dict, Name:str, MassRes:list, Elements:list, Airfoils_di
         raise TypeError("MassRes must be a list")
     if not isinstance(Elements, list):
         raise TypeError("Element must be a list")
-    if not isinstance(Airfoils_dir, str):
-        raise TypeError("Airfoils_dir must be a string")
-    if not isinstance(Polars_dir, str):
-        raise TypeError("Polars_dir must be a string")
+    if not isinstance(AirfoilsDir, str):
+        raise TypeError("AirfoilsDir must be a string")
+    if not isinstance(PolarsDir, str):
+        raise TypeError("PolarsDir must be a string")
     if not isinstance(BankAng, (int, float)):
         raise TypeError("BankAng must be a number")
     if not isinstance(TotRefS, bool):
@@ -583,25 +607,25 @@ def flow5_plane(CaseRes:dict, Name:str, MassRes:list, Elements:list, Airfoils_di
         for i in el_inertia:
             if i["coord"]==el["name"]:
                 mass=i["mass"]
-        data,a=update1_plane_xml(data,el,k,mass,BankAng)
+        data,a=_update1_plane_xml(data,el,k,mass,BankAng)
         airfoils.extend(a)
 
-    airfoils_dict=add_airfoils_files(airfoils,Airfoils_dir,Polars_dir,AIRFOILS_PATH,XFLR5_POLARS_PATH,XFOIL_POLARS_PATH)
-    S,wingspan,MAC=planeparams(Elements,TotRefS)
+    airfoils_dict=_add_airfoils_files(airfoils,AirfoilsDir,PolarsDir,AIRFOILS_PATH,XFLR5_POLARS_PATH,XFOIL_POLARS_PATH)
+    S,wingspan,MAC=_planeparams(Elements,TotRefS)
 
     PlaneRes=deepcopy(CaseRes)
     PlaneRes.update({"plane":Name,"ref_data":[round(S,3),round(wingspan,3),round(MAC,3)],"bank_angle":BankAng})
 
-    update_case_xml(CASE_XML,airfoils_dict)
+    _update_case_xml(CASE_XML,airfoils_dict)
 
     if Gate:
         if len(pl_inertia)!=0:
-            data=update2_plane_xml(data,pl_inertia)
-        XML_writer(data,PLANE_XML,"Plane")
+            data=_update2_plane_xml(data,pl_inertia)
+        _XML_writer(data,PLANE_XML,"Plane")
     return PlaneRes
 
 
-def update_case(g,CASE_XML,T12Range,T3Range,T5Range,T8Range):
+def _update_case(g,CASE_XML,T12Range,T3Range,T5Range,T8Range):
     plane=join(g[0]["planes_path"],g[0]["plane"])
     data={
         "Plane_Analysis/Plane_Definition_Files/Process_All_Files":"false",
@@ -617,11 +641,11 @@ def update_case(g,CASE_XML,T12Range,T3Range,T5Range,T8Range):
         anal=join(g[0]["analysis_path"],a["analysis"])
         data.update({f"Plane_Analysis/Plane_Analysis_Files/Analysis_File_Name+{i}":f"{anal}.xml"})
 
-    XML_writer(data,CASE_XML)
+    _XML_writer(data,CASE_XML)
     return
 
 
-def store(folder,source,STORED):
+def _store(folder,source,STORED):
     makedirs(STORED, exist_ok=True)
     destination = join(STORED, folder)
     if isdir(source):
@@ -629,7 +653,7 @@ def store(folder,source,STORED):
     return 0
 
 
-def delete(RESULTS):
+def _delete(RESULTS):
     for folder in listdir(RESULTS):
         folder_path = join(RESULTS, folder)
         if isdir(folder_path):
@@ -637,7 +661,7 @@ def delete(RESULTS):
     return 0
 
 
-def criteria(data):
+def _criteria(data):
     groups=[]
     index=[]
     for i in range(len(data)):
@@ -664,27 +688,28 @@ def criteria(data):
     return groups,index
 
 
-def angles_num(a):
+def _angles_num(a):
     try:
         n=int(1+(a[1]-a[0])/a[2])
     except:
         n=0
     return n
 
+
 def flow5_run(ExePath: str, AnalysisRes:list, T12Range:list=[0,0,0], T3Range:list=[0,0,0], T5Range:list=[0,0,0], T8Range:list=[0,0,0], Run:bool=True, Store:bool=False, Gate:bool=True)->list:
     '''Executes the analyses in Flow5.
     Args:
         ExePath (str): The path of the Flow5 executable.
-        AnalysisRes (list): A list of dictionaries with the data for each analysis obtained through flow5_analysis.
-        T12Range (list, optional): A list of three numbers representing the range and step of the angle of attack in deg [min, max, step] for T1 and T2 analyses. Default is [0, 0, 0].
-        T3Range (list, optional): A list of three numbers representing the range and step of the angle of attack in deg [min, max, step] for T3 analyses. Default is [0, 0, 0].
-        T5Range (list, optional): A list of three numbers representing the range and step of the sideslip angle in deg [min, max, step] for T5 analyses. Default is [0, 0, 0].
-        T8Range (list, optional): A list of three numbers representing the angle of attack (deg), sideslip angle (deg) and speed (m/s) of the drone [AoA, Beta, Speed] for T8 analyses. Default is [0, 0, 0].
+        AnalysisRes (dict list): A list of dictionaries with the data for each analysis obtained through flow5_analysis.
+        T12Range (float list, optional): A list of three numbers representing the range and step of the angle of attack in deg [min, max, step] for T1 and T2 analyses. Default is [0, 0, 0].
+        T3Range (float list, optional): A list of three numbers representing the range and step of the angle of attack in deg [min, max, step] for T3 analyses. Default is [0, 0, 0].
+        T5Range (float list, optional): A list of three numbers representing the range and step of the sideslip angle in deg [min, max, step] for T5 analyses. Default is [0, 0, 0].
+        T8Range (float list, optional): A list of three numbers representing the angle of attack (deg), sideslip angle (deg) and speed (m/s) of the drone [AoA, Beta, Speed] for T8 analyses. Default is [0, 0, 0].
         Run (bool, optional): If True, executes the analyses. Default is True.
         Store (bool, optional): If True, stores the results in the "stored" folder. Default is False.
         Gate (bool, optional): If False no file/folder is modified or created and no analyses are executed. Default is True.
     Returns:
-        RunRes (list): A list of dictionaries with the data related to the results of each analysis.
+        RunRes (dict list): A list of dictionaries with the data related to the results of each analysis.
     '''
 
     if not isinstance(ExePath, str):
@@ -723,18 +748,16 @@ def flow5_run(ExePath: str, AnalysisRes:list, T12Range:list=[0,0,0], T3Range:lis
     
     cmd=f'{ExePath} -p -s "{CASE_XML}"'
     
-    groups,index=criteria(AnalysisRes)
+    groups,index=_criteria(AnalysisRes)
     if Run:
-        delete(RESULTS)
+        _delete(RESULTS)
         for g in groups:
-            update_case(g,CASE_XML,T12Range,T3Range,T5Range,T8Range)
+            _update_case(g,CASE_XML,T12Range,T3Range,T5Range,T8Range)
             si=subprocess.STARTUPINFO()
             si.dwFlags=subprocess.STARTF_USESHOWWINDOW
             si.wShowWindow=0#SW_HIDE
             CREATE_NO_WINDOW=0x08000000
             subprocess.run(cmd,creationflags=CREATE_NO_WINDOW,startupinfo=si)
-
-        print("Analysis executed!")
     else:
         print("Run=False")
     try:
@@ -744,10 +767,10 @@ def flow5_run(ExePath: str, AnalysisRes:list, T12Range:list=[0,0,0], T3Range:lis
             results_folder.append(join(RESULTS, f))
         if Store:
             for f,p in zip(folders,results_folder):
-                store(f,p,STORED)
+                _store(f,p,STORED)
 
         RunRes = [None] * len(AnalysisRes)
-        angles=[angles_num(T12Range),angles_num(T3Range),angles_num(T5Range),1]
+        angles=[_angles_num(T12Range),_angles_num(T3Range),_angles_num(T5Range),1]
         
         for k,g in enumerate(groups):
             for g,i in zip(groups[k],index[k]):
@@ -772,40 +795,7 @@ def flow5_run(ExePath: str, AnalysisRes:list, T12Range:list=[0,0,0], T3Range:lis
     return RunRes
 
 
-def search_files(direc,exts=None):
-    if not isinstance(direc,(str)):
-        raise Exception("path need to be a str variable")
-    if not isdir(direc):
-        raise Exception(direc+" is not a valid directory")
-    if exts==None:
-        files=[{"name":f,"path":join(direc,f)} for f in listdir(direc) if isfile(join(direc,f))]
-    elif isinstance(exts,(str,tuple)):
-        files=[{"name":f,"path":join(direc,f)} for f in listdir(direc) if f.lower().endswith(exts) and isfile(join(direc,f))]
-    elif isinstance(exts,(list)):
-        files=[{"name":f,"path":join(direc,f)} for f in listdir(direc) for e in exts if f.lower().endswith(e) and isfile(join(direc,f))]
-    else:
-        raise Exception("exts need to be a str, list, tuple variable or None. If None take all files in the directory.")
-    return files
-
-
-def get_files(direc,exts):
-    files=[]
-    if not isinstance(direc,(list)):
-        direc=[direc]
-    for d in direc:
-        if not isinstance(d,(str)):
-            print("path need to be a str variable")
-            continue
-        if not isdir(d):
-            print(d+" is not a valid directory")
-        elif isdir(d):
-            files.extend(search_files(d,exts))
-        elif isfile(d) and d.lower().endswith(exts):
-            files.append({"name":basename(d),"path":d})
-    return files
-
-
-def get_data1(CSV_PATH,Data,angles):
+def _get_data1(CSV_PATH,Data,angles):
     Results=[]
     Ident=[]
     Data1=[]
@@ -851,7 +841,7 @@ def get_data1(CSV_PATH,Data,angles):
     return Results,Ident,Data2
 
 
-def get_data2(Results,CSV_PATH,Data,Ident,Analysis):
+def _get_data2(Results,CSV_PATH,Data,Ident,Analysis):
     file_data=[]
     with open(CSV_PATH,mode='r',encoding="utf8") as file:
         file_data=file.readlines()
@@ -912,10 +902,10 @@ def flow5_results(RunRes:dict, Data:list, OpPoints:bool=False)->tuple:
     '''Collects the results of the analyses in Flow5.
     Args:
         RunRes (dict): A dictionary with the data related to the results of an analysis executed by flow5_run.
-        Data (list): A list of names of data to collect. They must be present in the files containing the results obtained from Flow5 (without any parentheses that may contain the units).
+        Data (str list): A list of names of data to collect. They must be present in the files containing the results obtained from Flow5 (without any parentheses that may contain the units).
         OpPoints (bool, optional): If True, also reads the results from the individual Operating Points files. Default is False. Flow5 7.55 is a bit bugged, for now is better to set it False.
     Returns:
-        Results (tuple): The results obtained from reading the analysis files.
+        Results (str/float tuple): The results obtained from reading the analysis files (headers and values).
         Analysis (str): The name of the analysis.
     '''
 
@@ -932,12 +922,12 @@ def flow5_results(RunRes:dict, Data:list, OpPoints:bool=False)->tuple:
     base_path=join(RunRes["results_folder"],RunRes["plane"],RunRes["analysis"])
     
     CSV1_PATH=join(base_path+".csv")
-    Results,Ident,Data2=get_data1(CSV1_PATH,Data,angles)
+    Results,Ident,Data2=_get_data1(CSV1_PATH,Data,angles)
 
     if OpPoints:
-        files=get_files(base_path,("csv","txt"))
+        files=_get_files(base_path,("csv","txt"))
         for f in files:
-            Results=get_data2(Results,f["path"],Data2,Ident,RunRes["analysis"])
+            Results=_get_data2(Results,f["path"],Data2,Ident,RunRes["analysis"])
         
     for n,res in enumerate(Results[1:]):
         Results[n+1] = [float(x) for x in res]

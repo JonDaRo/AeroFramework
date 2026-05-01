@@ -6,8 +6,8 @@ lib_path = fullfile(root_dir, 'matlab');
 
 % Units: SI (m, kg, s, °)
 addpath(lib_path);
-import flow5.bridge_functions.*
-import flow5.wing_params.*
+import flow5.bridge.*
+import flow5.geometry.*
 
 %% Initialization
 flow5_dir    = pwd;                % Directory where flow5 case folder will be created
@@ -40,11 +40,12 @@ MassRes = [struct('coord', [0.11, 0, 0], 'mass', 6.0, 'tag', 'CG')];
 plane_name = 'plane1';
 PlaneRes   = flow5_plane(CaseRes, plane_name, MassRes, elements, airfoils_dir, polars_dir, 5);
 
-plot_wing_3d({elem1, elem2}, airfoils_dir);
+% 3D live plot
+plot_3d_live([elem1, elem2], airfoils_dir);
 
 %% Analysis Setup
 speed   = 30;     % Cruise speed [m/s]
-an_name = 'an1';  % Analysis identifier
+an_name = 'Analysis 1';  % Analysis identifier
 type    = 'T1';   % Analysis type
 method  = 'VLM2'; % Numerical method (e.g., Vortex Lattice Method 2)
 
@@ -52,7 +53,7 @@ AnalRes1 = flow5_analysis(PlaneRes, an_name, type, method, speed);
 
 %% Analysis Setup
 speed   = 25;     % Cruise speed [m/s]
-an_name = 'an2';  % Analysis identifier
+an_name = 'Analysis 2';  % Analysis identifier
 type    = 'T5';   % Analysis type
 method  = 'VLM2'; % Numerical method (e.g., Vortex Lattice Method 2)
 

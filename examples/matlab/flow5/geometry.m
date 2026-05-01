@@ -6,20 +6,20 @@ lib_path = fullfile(root_dir, 'matlab');
 
 % Units: SI (m, kg, s, °)
 addpath(lib_path);
-import flow5.bridge_functions.*
-import flow5.wing_params.*
+import flow5.bridge.*
+import flow5.geometry.*
 
 airfoils_dir = "dataset_airfoils";
 
 %% Wing Definition
 %% Wing Definition
-% 'gov' (governor) vector: defines how geometric inputs are interpreted.
+% 'gov' (Gene or Value) vector: defines how geometric inputs are interpreted.
 % Logic:
-%   TRUE  -> Value is a parameter (0 to 10), scaled between the limits defined below.
+%   TRUE  -> Gene is a parameter (0 to 10), scaled between the limits defined below.
 %   FALSE -> Value is treated as a physical measure (m or deg).
 %
 % Index mapping: [span, taper, offset, twist, dihedral]
-gov = [true, true, true, true, true, true, true];
+gov =            [true, true,  true,   true,  true    ];
 
 % Multi-segment geometry definition
 % For n segments, span/taper/offset/dihedral require n values. 
@@ -55,7 +55,7 @@ winggeo = trapez_wing(mirror, middle_gap, gov, span, taper, offset, twist, dih, 
 [elem1, out1] = flow5_element(nome_elemento, type, winggeo, airfoils, position, tilt_angle, x_panels);
 
 %% Tail Definition
-gov              = [true, true, true, true, true, true, true];
+gov              = [true, true, true, true, true];
 span             = [10.0, 5.0];
 taper            = [10.0, 7.0];
 offset           = [10.0, 10.0];
@@ -78,5 +78,5 @@ tailgeo = trapez_wing(true, 0, gov, span, taper, offset, twist, dih, ...
                 position, tilt_angle, x_panels);
 
 %% Assembly and Visualization
-GeoElems_List = {elem1, elem2};
-plot_wing_3d(GeoElems_List, airfoils_dir);
+GeoElems_List = [elem1, elem2];
+plot_3d(GeoElems_List, airfoils_dir);

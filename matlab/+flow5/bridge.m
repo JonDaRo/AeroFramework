@@ -1,6 +1,6 @@
-classdef bridge_functions
+classdef bridge
     properties (Constant)
-        py_bf=py.importlib.import_module('aeroframework.flow5.bridge_functions');
+        py_bf=py.importlib.import_module('aeroframework.flow5.bridge');
     end
     methods (Static)
         
@@ -21,7 +21,7 @@ classdef bridge_functions
             if nargin < 4,StoreOP = false;end
             if nargin < 5,Gate = true;end
             
-            res_py=flow5.bridge_functions.py_bf.flow5_case(Path, int32(Threads), pyargs('Fl5File', logical(Fl5File), 'StoreOP', logical(StoreOP), 'Gate', logical(Gate)));
+            res_py=flow5.bridge.py_bf.flow5_case(Path, int32(Threads), pyargs('Fl5File', logical(Fl5File), 'StoreOP', logical(StoreOP), 'Gate', logical(Gate)));
             
             CaseRes=struct(res_py);
             CaseRes.raw=res_py;
@@ -29,7 +29,7 @@ classdef bridge_functions
     
         function [GeoElem,Element]=flow5_element(Name, Type, WingGeo, Airfoils, WingPos, WingTilt, Panels)
             %{
-            Generates the data in list format for geometry generation and structure for element generation in Flow5.
+            Generates a structure for geometry generation and a structure for element generation in Flow5.
             Args:
                 Name (string): The name of the element.
                 Type (string): The type of element (MAINWING, OTHERWING, ELEVATOR, FIN).
@@ -47,7 +47,7 @@ classdef bridge_functions
                 WingTilt (double array): An array of two numbers representing the rotation angle in deg of the element around the x, y axes (Rx, Ry).
                 Panels (integer, optional): The number of panels along the x direction (chord) to use. Default is 25.
             Returns:
-                GeoElem (double array): An array containing the generic geometric data of the element, for the visualization.
+                GeoElem (struct): A structure containing the geometric data of the element for the visualization.
                 Element (struct): A structure containing the geometric data for the generation of the element in Flow5.
             %}
 
@@ -58,15 +58,16 @@ classdef bridge_functions
             py_WingPos=py.list(num2cell(double(WingPos)));
             py_WingTilt=py.list(num2cell(double(WingTilt)));
             
-            out_tuple=flow5.bridge_functions.py_bf.flow5_element(Name, Type, py_WingGeo, ...
+            out_tuple=flow5.bridge.py_bf.flow5_element(Name, Type, py_WingGeo, ...
                 py_Airfoils, py_WingPos, py_WingTilt, pyargs('Panels', int32(Panels)));
             
-            GeoElem=out_tuple{1};
+            GeoElem=struct(out_tuple{1});
+            GeoElem.raw=out_tuple{1};
             Element=struct(out_tuple{2});
             Element.raw=out_tuple{2};
         end
         
-        function PlaneRes=flow5_plane(CaseRes, Name, MassRes, Elements, Airfoils_dir, Polars_dir, BankAng, TotRefS, Gate)
+        function PlaneRes=flow5_plane(CaseRes, Name, MassRes, Elements, AirfoilsDir, PolarsDir, BankAng, TotRefS, Gate)
             %{
             Creates an XML file for the definition of an aircraft in Flow5.
             Args:
@@ -77,8 +78,8 @@ classdef bridge_functions
                                     and "tag" (a name to identify the mass point);
                                 -if the key "coord" is the name of the element, the key "mass" is its mass in kg (automatically distributed over the entire element by flow5) and there is no key "tag".
                 Elements (struct array): An array of structures with the geometric data for each element of the aircraft obtained through flow5_element.
-                Airfoils_dir (string): The path of the folder containing the airfoils .dat files.
-                Polars_dir (string): The path of the folder containing the polars .plr or .txt files.
+                AirfoilsDir (string): The path of the folder containing the airfoils .dat files.
+                PolarsDir (string): The path of the folder containing the polars .plr or .txt files.
                 BankAng (double, optional): The bank angle in deg to apply to the entire aircraft (positive is clockwise rotation around the x-axis). Default is 0.
                 TotRefS (logical, optional): If True, considers the total surface area of the aircraft as reference for the analyses (include OTHERWING elements). Default is False.
                 Gate (logical, optional): If False no file/folder is modified or created. Default is True.
@@ -103,13 +104,13 @@ classdef bridge_functions
                 py_Elements.append(Elements(i).raw);
             end
             
-            res_py=flow5.bridge_functions.py_bf.flow5_plane(CaseRes.raw, Name, py_MassRes, py_Elements, Airfoils_dir, Polars_dir, pyargs('BankAng', double(BankAng),'TotRefS', logical(TotRefS), 'Gate', logical(Gate)));
+            res_py=flow5.bridge.py_bf.flow5_plane(CaseRes.raw, Name, py_MassRes, py_Elements, AirfoilsDir, PolarsDir, pyargs('BankAng', double(BankAng),'TotRefS', logical(TotRefS), 'Gate', logical(Gate)));
             
             PlaneRes=struct(res_py);
             PlaneRes.raw=res_py;
         end
         
-        function AnalysisRes=flow5_analysis(PlaneRes, Name, Type, Method, FixTAS, FixAoA, ThinSurf, GrdEff, Height, Viscosity, Density, Viscous, Xflr5Visc, optional)
+        function AnalysisRes=flow5_analysis(PlaneRes, Name, Type, Method, FixTAS, FixAoA, ThinSurf, GrdEff, Height, Viscosity, Density, Viscous, Xflr5Visc, Optional)
             %{
             Creates an XML file for a Flow5 analysis.
             Args:
@@ -126,7 +127,7 @@ classdef bridge_functions
                 Xflr5Visc (logical, optional): If True uses CL data for viscous analysis (XFLR5 method). Default is True.
                 FixTAS (double, optional): The fixed velocity for fixed speed analyses. Default is 0m/s.
                 FixAoA (double, optional): The fixed angle of attack for fixed angle of attack analyses. Default is 0deg.
-                optional (struct, optional): A structure with any additional parameters to include in the XML file.
+                Optional (struct, optional): A structure with any additional parameters to include in the XML file. The key must be the XML parameter path like "Polar/Viscous_Analysis/TransAtHinge" associated to its value.
                 Gate (logical, optional): If False no file/folder is modified or created. Default is True.
             Returns:
                 AnalysisRes (struct): A structure with the data related to the analysis.
@@ -141,11 +142,11 @@ classdef bridge_functions
             if nargin < 11,Density = 1.225;end
             if nargin < 12,Viscous = true;end
             if nargin < 13,Xflr5Visc = true;end
-            if nargin < 14,optional = struct();end
+            if nargin < 14,Optional = struct();end
             
-            res_py=flow5.bridge_functions.py_bf.flow5_analysis(PlaneRes.raw, Name, Type, Method, logical(ThinSurf),...
+            res_py=flow5.bridge.py_bf.flow5_analysis(PlaneRes.raw, Name, Type, Method, logical(ThinSurf),...
             logical(GrdEff), double(Height), double(Viscosity), double(Density), logical(Viscous),...
-            logical(Xflr5Visc), double(FixTAS), double(FixAoA), pyargs('optional', py.dict(optional)));
+            logical(Xflr5Visc), double(FixTAS), double(FixAoA), pyargs('optional', py.dict(Optional)));
             
             AnalysisRes=struct(res_py);
             AnalysisRes.raw=res_py; 
@@ -186,7 +187,7 @@ classdef bridge_functions
             py_T5Range=py.list(num2cell(double(T5Range)));
             py_T8Range=py.list(num2cell(double(T8Range)));
             
-            res_py_list=flow5.bridge_functions.py_bf.flow5_run(ExePath, py_AnalList, ...
+            res_py_list=flow5.bridge.py_bf.flow5_run(ExePath, py_AnalList, ...
                 pyargs('T12Range', py_T12Range, 'T3Range', py_T3Range, ...
                        'T5Range', py_T5Range, 'T8Range', py_T8Range, ...
                        'Run', logical(Run), 'Store', logical(Store), 'Gate', logical(Gate)));
@@ -218,7 +219,7 @@ classdef bridge_functions
             if nargin < 3,OpPoints = false;end
 
             py_Data=py.list(cellstr(Data));
-            res_tuple=flow5.bridge_functions.py_bf.flow5_results(RunRes.raw, py_Data, pyargs('OpPoints', logical(OpPoints)));
+            res_tuple=flow5.bridge.py_bf.flow5_results(RunRes.raw, py_Data, pyargs('OpPoints', logical(OpPoints)));
             
             AnalysisName=string(res_tuple{2}); 
 
