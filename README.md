@@ -173,7 +173,7 @@ Plots the 3D elements using PyVista.
 
 #### `plot_3d_live`
 Plots the 3D elements using PyVista. The graph do not stop the progress of the script and can be updated during loops.
-    Args:
+*    **Args:**
         * `GeoElems` (dict list): List of geometric elements, each containing geometric data for the visualization.
         * `AirfoilsDir` (str): Directory path where airfoil coordinate files are stored.
 

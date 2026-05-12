@@ -146,7 +146,7 @@ classdef bridge
             
             res_py=flow5.bridge.py_bf.flow5_analysis(PlaneRes.raw, Name, Type, Method, logical(ThinSurf),...
             logical(GrdEff), double(Height), double(Viscosity), double(Density), logical(Viscous),...
-            logical(Xflr5Visc), double(FixTAS), double(FixAoA), pyargs('optional', py.dict(Optional)));
+            logical(Xflr5Visc), double(FixTAS), double(FixAoA), pyargs('Optional', py.dict(Optional)));
             
             AnalysisRes=struct(res_py);
             AnalysisRes.raw=res_py; 
