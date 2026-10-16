@@ -2,7 +2,7 @@ clear; clc;
 
 % Setup paths and import AeroFramework modules
 root_dir = fileparts(fileparts(fileparts(pwd)));
-lib_path = fullfile(root_dir, 'matlab');
+lib_path = fullfile(root_dir, 'matlab_lib');
 
 % Units: SI (m, kg, s, °)
 addpath(lib_path);
