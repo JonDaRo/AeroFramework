@@ -74,18 +74,10 @@ keys = ['α', 'β', 'φ', 'CL', 'CD', 'Cm', 'CY', 'Cl', 'Cn']
 data_matrix1, name1 = br.flow5_results(run_res[0], keys)
 data_matrix2, name2 = br.flow5_results(run_res[1], keys)
 
-def print_table(headers, rows):
-    col_widths=[max(len(str(item)) for item in [header] + [row[i] for row in rows]) for i, header in enumerate(headers)]
-    header_row=" | ".join(f"{header:<{col_widths[i]}}" for i, header in enumerate(headers))
-    print(header_row)
-    print("-" * len(header_row))
-    for row in rows:
-        print(" | ".join(f"{str(item):<{col_widths[i]}}" for i, item in enumerate(row)))
-
 print(f"\nResults for {name1}:\n")
-print_table(data_matrix1[0], data_matrix1[1:])
+br.print_table(data_matrix1[0], data_matrix1[1:])
 print(f"\nResults for {name2}:\n")
-print_table(data_matrix2[0], data_matrix2[1:])
+br.print_table(data_matrix2[0], data_matrix2[1:])
 
 #Stop the live viewer and close the plot when done.
 gm.finalize_plot_3d_live()

@@ -132,6 +132,13 @@ Collects the results of the analyses in Flow5.
         * `Analysis` (str): The name of the analysis.
 
 
+#### `print_table`
+Print a table with the given headers and rows.
+*    **Args:**
+        * `Headers` (list): A list representing the headers of the table.
+        * `Rows` (list): A list of lists, where each inner list represents a row of the table.
+        
+
 ---
 ### 2. `geometry`
 This repository contains a set of Python tools designed to automate geometry generation for the **Flow5** aerodynamic analysis software.
@@ -179,3 +186,138 @@ Plots the 3D elements using PyVista. The graph do not stop the progress of the s
 
 #### `finalize_plot_3d_live`
 Finalizes the PyVista plot_3d_live and waits for the window to be closed by the user.
+
+
+## Examples
+
+A complete example demonstrating how to initialize a workspace, generate a wing geometry, defining a simulation, run Flow5, extract and print the resulting aerodynamic coefficients. One for Python and one for MATLAB.
+
+### Python Example
+
+```python
+from aeroframework.flow5 import bridge as br
+from aeroframework.flow5 import geometry as gm
+import os
+
+## Initialization
+flow5_dir    = os.getcwd()           # Directory where flow5 case folder will be created
+airfoils_dir = 'dataset_airfoils'    # Directory for .dat airfoil files
+polars_dir   = 'dataset_polars'      # Directory for .plr and .txt polar files
+n_threads    = 1                     # CPU threads for parallel execution
+
+# Initialize Flow5 Case
+case_res = br.flow5_case(flow5_dir, n_threads, True)
+
+## Geometry Definition
+gov    = [True]*5
+span   = [7.0, 10.0] 
+taper  = [8.0, 1.0]
+offset = [0.0, 0.0]
+twist  = [5.0, 0.0, 0.0]
+dih    = [0.0, 0.0]
+
+winggeo = gm.trapez_wing(True, 0, gov, span, taper, offset, twist, dih, 
+                         0.55, 3, 0.4, [0.15, 0.6], [-6, 6], [0, 10])
+
+geo, element = br.flow5_element('wing', 'MAINWING', winggeo, ['opt6.0']*4, [0, 0, 0], [0, 0], 15)
+geometry = [geo] 
+elements = [element] 
+
+## Plane Definition
+mass_res = [{'coord': [0.11, 0, 0], 'mass': 6.0, 'tag': 'CG'}]
+
+plane_name = 'Plane'
+plane_res  = br.flow5_plane(case_res, plane_name, mass_res, elements, airfoils_dir, polars_dir, 5)
+
+# 3D live plot
+gm.plot_3d_live(geometry, airfoils_dir)
+
+## Analysis Setup
+speed = 30 # Cruise speed [m/s]
+an_name = 'Analysis' 
+an_type = 'T1'     
+method = 'VLM2'   
+
+anal_res = br.flow5_analysis(plane_res, an_name, an_type, method, FixTAS=speed)
+analyses = [anal_res] 
+
+## Execution
+flow5_exe_path = 'flow5'          # Executable path
+alpha_range    = [0.0, 2.0, 1.0]  # Angles of Attack [start, stop, step]
+
+run_res = br.flow5_run(flow5_exe_path, analyses, 
+                        alpha_range, [0, 0, 0], [0, 0, 0], [0, 0, 0])
+
+## Results Extraction
+keys = ['α', 'β', 'φ', 'CL', 'CD', 'Cm', 'CY', 'Cl', 'Cn']
+data_matrix, name = br.flow5_results(run_res[0], keys) 
+
+print(f"\nResults for {name}:\n")
+br.print_table(data_matrix[0], data_matrix[1:])
+
+# Stop the live viewer and close the plot when done.
+gm.finalize_plot_3d_live()
+```
+
+### MATLAB Example
+
+```matlab
+clear; clc;
+
+% Setup paths and import AeroFramework modules
+root_dir = fileparts(fileparts(fileparts(pwd)));
+lib_path = fullfile(root_dir, 'matlab');
+
+addpath(lib_path);
+import flow5.bridge.*
+import flow5.geometry.*
+
+%% Initialization
+flow5_dir    = pwd;                    % Directory where flow5 case folder will be created
+airfoils_dir = 'dataset_airfoils';     % Directory for .dat airfoil files
+polars_dir   = 'dataset_polars';       % Directory for .plr and .txt polar files
+n_threads    = 1;                      % CPU threads for parallel execution
+
+% Initialize Flow5 Case
+CaseRes = flow5_case(flow5_dir, n_threads);
+
+%% Geometry Definition
+gov    = [true, true, true, true, true, true, true];
+span   = [7, 10.0]; 
+taper  = [8, 1];
+twist  = [5.0, 0.0, 0.0];
+winggeo = trapez_wing(true, 0, gov, span, taper, [0,0], twist, [0,0], 0.55, 3, 0.4, [0.15, 0.6], [-6, 6], [0, 10]);
+[geometry, element] = flow5_element('wing', 'MAINWING', winggeo, {'opt6.0','opt6.0','opt6.0','opt6.0'}, [0,0,0], [0,0], 15);
+
+%% Plane Definition
+MassRes = [struct('coord', [0.11, 0, 0], 'mass', 6.0, 'tag', 'CG')];
+
+plane_name = 'Plane';
+PlaneRes   = flow5_plane(CaseRes, plane_name, MassRes, element, airfoils_dir, polars_dir, 5);
+
+% 3D live plot
+plot_3d_live(geometry, airfoils_dir);
+
+%% Analysis Setup
+speed   = 30; % Cruise speed [m/s]
+an_name = 'Analysis';
+an_type    = 'T1';
+method  = 'VLM2';
+
+AnalRes = flow5_analysis(PlaneRes, an_name, an_type, method, speed);
+
+%% Execution
+flow5_exe_path = 'flow5';         % Executable path
+alpha_range    = [0.0, 2.0, 1.0]; % Angles of Attack [start, stop, step]
+
+RunRes = flow5_run(flow5_exe_path, AnalRes, alpha_range, [0,0,0], [0,0,0], [0,0,0]);
+
+%% Results Extraction
+keys = {'α', 'β', 'φ', 'CL', 'CD', 'Cm', 'CY', 'Cl', 'Cn'};
+[Data_Matrix1, Headers1, Name1] = flow5_results(RunRes(1), keys);
+
+% Display results first analysis
+ResultsTable = array2table(Data_Matrix1, 'VariableNames', Headers1);
+fprintf('\nSimulation Results of %s:\n',Name1);
+disp(ResultsTable);
+```

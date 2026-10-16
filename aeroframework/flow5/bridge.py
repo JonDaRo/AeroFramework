@@ -939,3 +939,17 @@ def flow5_results(RunRes:dict, Data:list, OpPoints:bool=False)->tuple:
             Results[n+1][idx]=RunRes["bank_angle"]
     
     return Results,Analysis
+
+
+def print_table(Headers, Rows):
+    '''Print a table with the given headers and rows.
+    Args:
+        Headers (list): A list representing the headers of the table.
+        Rows (list): A list of lists, where each inner list represents a row of the table.
+    '''
+    col_widths=[max(len(str(item)) for item in [header] + [row[i] for row in Rows]) for i, header in enumerate(Headers)]
+    header_row=" | ".join(f"{header:<{col_widths[i]}}" for i, header in enumerate(Headers))
+    print(header_row)
+    print("-" * len(header_row))
+    for row in Rows:
+        print(" | ".join(f"{str(item):<{col_widths[i]}}" for i, item in enumerate(row)))
